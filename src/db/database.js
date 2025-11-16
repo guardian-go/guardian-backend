@@ -1,16 +1,21 @@
 import mongoose from "mongoose";
 
-const connectDb = async ()=>{
+const connectDb = async () => {
     try {
-        const conn = await mongoose.connect(process.env.MONGO_URL)
-        console.log(`connnection established: ${conn.connection.host}`)
-    } catch (error) {
-        console.log(`error in connection to mongo ${error.message}`)
+        const mongoUrl = process.env.MONGO_URL || process.env.DB_URL;
+        if (!mongoUrl) {
+            throw new Error('MONGO_URL or DB_URL environment variable is not set');
+        }
         
+        const conn = await mongoose.connect(mongoUrl);
+        console.log(`Connection established: ${conn.connection.host}`);
+    } catch (error) {
+        console.log(`Error in connection to MongoDB: ${error.message}`);
+        process.exit(1);
     }
-}
+};
 
-export default connectDb
+export default connectDb;
 
 
 

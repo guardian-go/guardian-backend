@@ -6,7 +6,8 @@
     "scripts": {
         "setup": "npm install && npm update",
         "dev": "nodemon src/server.js",
-        "start": "node src/server.js"
+        "start": "node src/server.js",
+        "test": "node test-api.js"
     },
     "type": "module",
     "keywords": [
@@ -30,7 +31,9 @@
         "mongodb": "^3.3.3",
         "mongoose": "^8.19.3",
         "morgan": "^1.9.1",
-        "rotating-file-stream": "^1.4.6"
+        "rotating-file-stream": "^1.4.6",
+        "socket.io": "^4.7.5",
+        "jsonwebtoken": "^9.0.2"
     },
     "_moduleAliases": {
         "@root": "src",

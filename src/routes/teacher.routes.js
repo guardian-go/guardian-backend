@@ -1,0 +1,21 @@
+import express from 'express';
+import * as teacherController from '../controllers/teacher.controller.js';
+import { authenticate, authorize } from '../middleware/auth.middleware.js';
+
+const router = express.Router();
+
+// All teacher routes require authentication and Teacher role
+router.use(authenticate);
+router.use(authorize('Teacher'));
+
+// Teacher profile routes (access own data only)
+router.get('/me', teacherController.getMyProfile);
+router.put('/me', teacherController.updateMyProfile);
+
+// Teacher notification routes (access own notifications only)
+router.get('/me/notifications', teacherController.getMyNotifications);
+router.post('/me/notifications/send', teacherController.sendNotificationToParent);
+router.post('/me/notifications/send-multiple', teacherController.sendNotificationToMultipleParents);
+
+export default router;
+

@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+const options = {discriminatorKey: "role", timestamps: true };
+
 const userSchema = new mongoose.Schema({
     fullName:{
         type: String,
@@ -14,14 +16,12 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    role:{
+    phoneNumber:{
         type: String,
-        required: true,
-        enum: ['supervisor', 'parent', 'teacher'],
-        default: 'parent',
-    }
-},{timestamps: true});
+        required: true
+    },
+},options);
 
 const User = mongoose.model('User', userSchema);
 
-module.exports = User;
+export default User;

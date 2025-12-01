@@ -1,19 +1,72 @@
 import Parent from "../models/parent.model.js";
 import Notification from "../models/notification.model.js";
 import Teacher from "../models/teacher.model.js";
+import Student from "../models/student.model.js";
 
 // Get own profile (parent can only access their own data)
 export const getMyProfile = async (req, res) => {
     try {
         const parent = await Parent.findById(req.userId)
             .select('-password')
-            .populate('children', 'fullName email');
+            .populate({
+                path: 'children',
+                select: 'fullName email primaryTeacher',
+                populate: {
+                    path: 'primaryTeacher',
+                    select: 'fullName email _id'
+                }
+            });
         
         if (!parent) {
             return res.status(404).json({ success: false, message: 'Parent not found' });
         }
         
         res.status(200).json({ success: true, data: parent });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Attach an existing student to this parent using studentId
+export const attachStudent = async (req, res) => {
+    try {
+        const parentId = req.userId;
+        const { studentId, relation } = req.body;
+
+        if (!studentId) {
+            return res.status(400).json({ success: false, message: 'studentId is required' });
+        }
+
+        const parent = await Parent.findById(parentId);
+        if (!parent) {
+            return res.status(404).json({ success: false, message: 'Parent not found' });
+        }
+
+        const student = await Student.findById(studentId);
+        if (!student) {
+            return res.status(404).json({ success: false, message: 'Student not found' });
+        }
+
+        // Prevent attaching if already linked to another parent
+        if (student.parent && student.parent.toString() !== parentId.toString()) {
+            return res.status(400).json({ success: false, message: 'Student is already linked to another parent' });
+        }
+
+        student.parent = parentId;
+        if (relation) {
+            student.relation = relation;
+        }
+        await student.save();
+
+        if (!Array.isArray(parent.children)) {
+            parent.children = [];
+        }
+        if (!parent.children.includes(student._id)) {
+            parent.children.push(student._id);
+            await parent.save();
+        }
+
+        res.status(200).json({ success: true, message: 'Student attached successfully', data: student });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

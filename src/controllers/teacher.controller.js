@@ -1,6 +1,7 @@
 import Teacher from "../models/teacher.model.js";
 import Notification from "../models/notification.model.js";
 import Parent from "../models/parent.model.js";
+import Student from "../models/student.model.js";
 
 // Get own profile (teacher can only access their own data)
 export const getMyProfile = async (req, res) => {
@@ -14,6 +15,46 @@ export const getMyProfile = async (req, res) => {
         }
         
         res.status(200).json({ success: true, data: teacher });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Create a new student and assign to this teacher
+export const createStudent = async (req, res) => {
+    try {
+        const teacherId = req.userId;
+        const { fullName, grade, phoneNumber, address } = req.body;
+
+        if (!fullName) {
+            return res.status(400).json({ success: false, message: 'fullName is required' });
+        }
+
+        const teacher = await Teacher.findById(teacherId);
+        if (!teacher) {
+            return res.status(404).json({ success: false, message: 'Teacher not found' });
+        }
+
+        const student = new Student({
+            fullName,
+            grade,
+            phoneNumber,
+            address,
+            primaryTeacher: teacherId
+        });
+
+        await student.save();
+
+        // Add student to teacher's list if not already there
+        if (!Array.isArray(teacher.students)) {
+            teacher.students = [];
+        }
+        if (!teacher.students.includes(student._id)) {
+            teacher.students.push(student._id);
+            await teacher.save();
+        }
+
+        res.status(201).json({ success: true, data: student });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -185,6 +226,112 @@ export const sendNotificationToMultipleParents = async (req, res) => {
         }
         
         res.status(201).json({ success: true, data: notifications, count: notifications.length });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Get all students assigned to teacher
+export const getMyStudents = async (req, res) => {
+    try {
+        const teacher = await Teacher.findById(req.userId);
+        if (!teacher) {
+            return res.status(404).json({ success: false, message: 'Teacher not found' });
+        }
+
+        const students = await Student.find({ _id: { $in: teacher.students } })
+            .populate('parent', 'fullName email phoneNumber address')
+            .sort({ fullName: 1 });
+
+        res.status(200).json({ success: true, data: students });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Get student details by ID
+export const getStudentById = async (req, res) => {
+    try {
+        const { studentId } = req.params;
+        const teacher = await Teacher.findById(req.userId);
+        
+        if (!teacher) {
+            return res.status(404).json({ success: false, message: 'Teacher not found' });
+        }
+
+        // Check if student is assigned to this teacher
+        if (!teacher.students.includes(studentId)) {
+            return res.status(403).json({ success: false, message: 'Student not assigned to you' });
+        }
+
+        const student = await Student.findById(studentId)
+            .populate('parent', 'fullName email phoneNumber address emergencyContact')
+            .populate('releasedBy', 'fullName email');
+
+        if (!student) {
+            return res.status(404).json({ success: false, message: 'Student not found' });
+        }
+
+        res.status(200).json({ success: true, data: student });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Release student (mark as released)
+export const releaseStudent = async (req, res) => {
+    try {
+        const { studentId } = req.params;
+        const teacher = await Teacher.findById(req.userId);
+        
+        if (!teacher) {
+            return res.status(404).json({ success: false, message: 'Teacher not found' });
+        }
+
+        // Check if student is assigned to this teacher
+        if (!teacher.students.includes(studentId)) {
+            return res.status(403).json({ success: false, message: 'Student not assigned to you' });
+        }
+
+        const student = await Student.findById(studentId);
+        if (!student) {
+            return res.status(404).json({ success: false, message: 'Student not found' });
+        }
+
+        // Update student as released
+        student.isReleased = true;
+        student.releasedAt = new Date();
+        student.releasedBy = req.userId;
+        await student.save();
+
+        // Send notification to parent
+        const notification = new Notification({
+            sender: req.userId,
+            senderModel: 'Teacher',
+            recipient: student.parent,
+            recipientModel: 'Parent',
+            title: 'Student Released',
+            message: `${student.fullName} has been released from school by ${teacher.fullName} at ${new Date().toLocaleTimeString()}`,
+            type: 'student_released',
+            priority: 'high',
+            relatedStudent: student._id // Send student ID, not name
+        });
+
+        await notification.save();
+
+        // Emit real-time notification
+        const io = req.app.get('io');
+        io.to(`user-${student.parent}`).emit('new-notification', {
+            notification: await Notification.findById(notification._id)
+                .populate('sender', 'fullName email')
+                .populate('relatedStudent', 'fullName')
+        });
+
+        res.status(200).json({ 
+            success: true, 
+            message: 'Student released successfully',
+            data: student 
+        });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

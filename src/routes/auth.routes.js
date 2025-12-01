@@ -5,6 +5,7 @@ import { authenticate } from '../middleware/auth.middleware.js';
 const router = express.Router();
 
 // Public routes
+router.get('/teachers', authController.getAllTeachers); // Get all teachers for registration
 router.post('/register/parent', authController.registerParent);
 router.post('/register/teacher', authController.registerTeacher);
 router.post('/login', authController.login);

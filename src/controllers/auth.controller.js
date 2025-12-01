@@ -2,11 +2,25 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import Parent from "../models/parent.model.js";
 import Teacher from "../models/teacher.model.js";
+import Student from "../models/student.model.js";
+
+// Get all teachers (public endpoint for registration)
+export const getAllTeachers = async (req, res) => {
+    try {
+        const teachers = await Teacher.find()
+            .select('fullName email _id subject department employeeId')
+            .sort({ fullName: 1 });
+        
+        res.status(200).json({ success: true, data: teachers });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
 
 // Register Parent
 export const registerParent = async (req, res) => {
     try {
-        const { fullName, email, password, phoneNumber, address, emergencyContact, children } = req.body;
+        const { fullName, email, password, phoneNumber, address, emergencyContact, parentPhoto, student } = req.body;
         
         // Validate required fields
         if (!fullName || !email || !password || !phoneNumber) {
@@ -36,10 +50,64 @@ export const registerParent = async (req, res) => {
             phoneNumber,
             address,
             emergencyContact,
-            children: children || []
+            photo: parentPhoto, // Store parent photo URL from Cloudinary
+            children: []
         });
         
         await parent.save();
+        
+        // Create student if provided
+        let studentData = null;
+        if (student && student.fullName) {
+            if (!student.relation) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Student relation to parent is required'
+                });
+            }
+
+            // Validate teacher if provided
+            let teacher = null;
+            if (student.teacherId) {
+                teacher = await Teacher.findById(student.teacherId);
+                if (!teacher) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Invalid teacher ID provided'
+                    });
+                }
+            }
+
+            const newStudent = new Student({
+                fullName: student.fullName,
+                grade: student.grade,
+                photo: student.photo, // Store student photo URL from Cloudinary
+                dateOfBirth: student.dateOfBirth ? new Date(student.dateOfBirth) : undefined,
+                parent: parent._id,
+                relation: student.relation,
+                address: address, // Use parent's address
+                primaryTeacher: student.teacherId || undefined,
+            });
+            
+            await newStudent.save();
+            
+            // Add student to parent's children array
+            parent.children.push(newStudent._id);
+            await parent.save();
+            
+            // If teacher was provided, add student to teacher's students array
+            if (teacher && student.teacherId) {
+                if (!Array.isArray(teacher.students)) {
+                    teacher.students = [];
+                }
+                if (!teacher.students.includes(newStudent._id)) {
+                    teacher.students.push(newStudent._id);
+                    await teacher.save();
+                }
+            }
+            
+            studentData = newStudent.toObject();
+        }
         
         // Generate JWT token
         const token = jwt.sign(
@@ -52,10 +120,17 @@ export const registerParent = async (req, res) => {
         const parentResponse = parent.toObject();
         delete parentResponse.password;
         
+        // Populate children in response
+        await parent.populate('children', 'fullName grade photo');
+        
         res.status(201).json({ 
             success: true, 
             message: 'Parent registered successfully',
-            data: parentResponse,
+            data: {
+                ...parentResponse,
+                children: parent.children
+            },
+            student: studentData,
             token 
         });
     } catch (error) {
@@ -139,7 +214,11 @@ export const login = async (req, res) => {
         }
         
         // Find user (could be Parent or Teacher)
-        const user = await Parent.findOne({ email }) || await Teacher.findOne({ email });
+        // Try Parent first, then Teacher
+        let user = await Parent.findOne({ email });
+        if (!user) {
+            user = await Teacher.findOne({ email });
+        }
         
         if (!user) {
             return res.status(401).json({ 

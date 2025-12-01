@@ -1,46 +1,37 @@
 {
-    "name": "backend",
+    "name": "guardian-backend",
     "version": "1.0.0",
-    "description": "backend is the ultimate backend solution",
+    "description": "Backend API for Guardian App - School communication platform for parents and teachers",
     "main": "src/server.js",
     "scripts": {
         "setup": "npm install && npm update",
         "dev": "nodemon src/server.js",
-        "start": "node src/server.js",
-        "test": "node test-api.js"
+        "start": "node src/server.js"
     },
     "type": "module",
     "keywords": [
         "express",
         "backend",
-        "backend"
+        "api",
+        "guardian",
+        "school",
+        "parent-teacher",
+        "notification"
     ],
     "license": "UNLICENSED",
     "dependencies": {
         "bcrypt": "^6.0.0",
+        "cloudinary": "^1.41.3",
         "cookie-parser": "^1.4.4",
         "cors": "^2.8.5",
         "dotenv": "^17.2.3",
         "express": "^4.17.1",
-        "express-custom-error": "^1.8.4",
-        "has-keys": "^0.1.0",
+        "firebase-admin": "^12.4.0",
         "helmet": "^3.21.2",
-        "http-status": "^1.3.2",
-        "mandatoryenv": "^1.1.1",
-        "module-alias": "^2.2.3",
-        "mongodb": "^3.3.3",
+        "jsonwebtoken": "^9.0.2",
         "mongoose": "^8.19.3",
         "morgan": "^1.9.1",
-        "rotating-file-stream": "^1.4.6",
-        "socket.io": "^4.7.5",
-        "jsonwebtoken": "^9.0.2"
-    },
-    "_moduleAliases": {
-        "@root": "src",
-        "@controllers": "src/controllers",
-        "@models": "src/models",
-        "@util": "src/util",
-        "@routes": "src/routes"
+        "socket.io": "^4.7.5"
     },
     "devDependencies": {
         "nodemon": "^3.1.10"

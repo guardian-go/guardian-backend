@@ -17,5 +17,11 @@ router.get('/me/notifications', teacherController.getMyNotifications);
 router.post('/me/notifications/send', teacherController.sendNotificationToParent);
 router.post('/me/notifications/send-multiple', teacherController.sendNotificationToMultipleParents);
 
+// Teacher student routes
+router.get('/me/students', teacherController.getMyStudents);
+router.post('/me/students', teacherController.createStudent);
+router.get('/me/students/:studentId', teacherController.getStudentById);
+router.post('/me/students/:studentId/release', teacherController.releaseStudent);
+
 export default router;
 

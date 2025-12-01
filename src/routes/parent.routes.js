@@ -16,5 +16,8 @@ router.put('/me', parentController.updateMyProfile);
 router.get('/me/notifications', parentController.getMyNotifications);
 router.post('/me/notifications/send', parentController.sendNotificationToTeacher);
 
+// Attach an existing student to this parent
+router.post('/me/children/attach', parentController.attachStudent);
+
 export default router;
 

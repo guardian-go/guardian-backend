@@ -9,11 +9,7 @@ router.use(authenticate);
 
 // Notification routes (users can only access their own notifications)
 router.get('/me', notificationController.getMyNotifications);
-router.get('/:id', notificationController.getNotificationById);
 router.put('/:id/read', notificationController.markNotificationAsRead);
-router.put('/read-multiple', notificationController.markNotificationsAsRead);
-router.delete('/:id', notificationController.deleteNotification);
-router.delete('/multiple', notificationController.deleteNotifications);
 
 export default router;
 

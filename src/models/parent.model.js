@@ -9,6 +9,9 @@ const parentSchema = new mongoose.Schema({
     address: {
         type: String
     },
+    photo: {
+        type: String // URL or base64 string for parent photo
+    },
     emergencyContact: {
         name: String,
         phone: String,

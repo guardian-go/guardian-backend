@@ -31,7 +31,7 @@ const notificationSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['message', 'announcement', 'alert', 'reminder', 'general'],
+        enum: ['message', 'announcement', 'alert', 'reminder', 'general', 'school_reached', 'children_got', 'student_released'],
         default: 'general'
     },
     isRead: {

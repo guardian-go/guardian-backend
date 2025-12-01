@@ -4,7 +4,7 @@ import { authenticate } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
-// Protected route - requires authentication
-router.get('/profile', authenticate, userController.getProfile);
+// Protected routes - require authentication
+router.post('/me/fcm-token', authenticate, userController.updateFcmToken);
 
 export default router;

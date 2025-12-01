@@ -32,17 +32,44 @@ app.use(cors({
     origin: process.env.CLIENT_URL || "*",
     credentials: true
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Increase body size limit for JSON (for base64 images during upload)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
-app.use(morgan('dev'));
+// Logging middleware - use 'combined' for production, 'dev' for development
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // Routes
 app.use('/api', router);
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'OK', message: 'Server is running' });
+app.get('/health', async (req, res) => {
+    try {
+        // Check database connection
+        const mongoose = (await import('mongoose')).default;
+        const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+        
+        res.status(200).json({ 
+            status: 'OK', 
+            message: 'Server is running',
+            database: dbStatus,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        res.status(503).json({ 
+            status: 'ERROR', 
+            message: 'Server health check failed',
+            error: error.message 
+        });
+    }
+});
+
+// 404 handler for undefined routes (must be after all routes)
+app.use((req, res) => {
+    res.status(404).json({ 
+        success: false, 
+        message: `Route ${req.method} ${req.path} not found` 
+    });
 });
 
 // Socket.io connection handling
@@ -68,8 +95,33 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 5000;
 
+// Warn about missing environment variables (but don't break the app)
+if (!process.env.SECRET || process.env.SECRET === 'default_secret') {
+    console.warn('⚠️  WARNING: JWT SECRET not set or using default. This is insecure for production!');
+}
+
+if (!process.env.CLIENT_URL || process.env.CLIENT_URL === '*') {
+    console.warn('⚠️  WARNING: CLIENT_URL not set. CORS is allowing all origins. This is insecure for production!');
+}
+
+// Global error handler (must be after all routes)
+app.use((err, req, res, next) => {
+    console.error('Error:', err);
+    
+    // Don't expose error details in production
+    const message = process.env.NODE_ENV === 'production' 
+        ? 'Internal server error' 
+        : err.message;
+    
+    res.status(err.status || 500).json({ 
+        success: false, 
+        message: message 
+    });
+});
+
 httpServer.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`✅ Server is running on port ${PORT}`);
+    console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
     connectDb();
 });
 

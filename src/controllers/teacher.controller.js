@@ -272,7 +272,24 @@ export const getStudentById = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Student not found' });
         }
 
-        res.status(200).json({ success: true, data: student });
+        // Check if there's a recent school_reached notification for this student
+        // Only check notifications from today to ensure it's relevant
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        
+        const schoolReachedNotification = await Notification.findOne({
+            recipient: req.userId,
+            recipientModel: 'Teacher',
+            type: 'school_reached',
+            relatedStudent: studentId,
+            createdAt: { $gte: todayStart }
+        }).sort({ createdAt: -1 });
+
+        // Convert student to object and add the flag
+        const studentData = student.toObject();
+        studentData.hasSchoolReachedNotification = !!schoolReachedNotification;
+
+        res.status(200).json({ success: true, data: studentData });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -296,6 +313,25 @@ export const releaseStudent = async (req, res) => {
         const student = await Student.findById(studentId);
         if (!student) {
             return res.status(404).json({ success: false, message: 'Student not found' });
+        }
+
+        // Check if parent has sent a school_reached notification today
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        
+        const schoolReachedNotification = await Notification.findOne({
+            recipient: req.userId,
+            recipientModel: 'Teacher',
+            type: 'school_reached',
+            relatedStudent: studentId,
+            createdAt: { $gte: todayStart }
+        });
+
+        if (!schoolReachedNotification) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Cannot release student. Parent must send a "School Reached" notification first.' 
+            });
         }
 
         // Update student as released
